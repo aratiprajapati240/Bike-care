@@ -16,16 +16,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
+      - name: Install Android SDK packages
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
 
-      - name: Check project files
+      - name: Check Android project
         run: |
-          if [ ! -f ./gradlew ]; then
-            echo 'ERROR: gradlew not found. Upload a complete Android Gradle project.'
+          if [ ! -f gradlew ]; then
+            echo 'ERROR: gradlew not found. The repository needs a complete Android Gradle project.'
             exit 1
           fi
-          chmod +x ./gradlew
+          chmod +x gradlew
 
       - name: Build debug APK
         run: ./gradlew assembleDebug
