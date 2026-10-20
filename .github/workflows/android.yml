@@ -1,3 +1,4 @@
+
 name: Android APK Build
 
 on:
@@ -6,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,25 +18,38 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK packages
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-
-      - name: Check Android project
+      - name: Extract Android project ZIP
         run: |
-          if [ ! -f gradlew ]; then
-            echo 'ERROR: gradlew not found. The repository needs a complete Android Gradle project.'
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          mkdir extracted
+          ZIP_FILE=$(find . -maxdepth 2 -type f -iname '*.zip' | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No ZIP file found"
             exit 1
           fi
-          chmod +x gradlew
+          unzip -q "$ZIP_FILE" -d extracted
+          GRADLEW=$(find extracted -type f -name gradlew | head -n 1)
+          if [ -z "$GRADLEW" ]; then
+            echo "gradlew not found inside ZIP"
+            find extracted -maxdepth 3 -type f | head -n 50
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$GRADLEW")
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          chmod +x "$GRADLEW"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: |
+          cd "$PROJECT_DIR"
+          ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: bike-service-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: extracted/**/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
